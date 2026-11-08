@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   build:
@@ -67,10 +69,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
-          if [[ "$GITHUB_REF" != refs/tags/* ]]; then
-            TAG="v$(date +%Y%m%d-%H%M%S)"
-          fi
+          TAG="v$(date +%Y%m%d-%H%M%S)"
           gh release create "$TAG" build/PlaneTinderUnsigned.ipa \
             --title "Planeder $TAG (unsigned)" \
             --notes "Unsigned IPA. Install via AltStore/SideStore source, or download the IPA and sideload with your Apple ID." \
@@ -82,6 +81,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ steps.release.outputs.tag }}"
+          # AltStore needs plain numeric versions (e.g. 1.0.20261108) - no "v", no hyphens
+          VERSION="1.0.$(date +%Y%m%d)"
           IPA_URL="https://github.com/${{ github.repository }}/releases/download/$TAG/PlaneTinderUnsigned.ipa"
           DATE=$(date -u +"%Y-%m-%d")
           SIZE="${{ steps.ipa.outputs.size }}"
@@ -101,7 +102,7 @@ jobs:
                 "tintColor": "1E90FF",
                 "versions": [
                   {
-                    "version": "$TAG",
+                    "version": "$VERSION",
                     "date": "$DATE",
                     "localizedDescription": "Unsigned cloud build $TAG.",
                     "downloadURL": "$IPA_URL",
@@ -120,4 +121,16 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/source.json
           git commit -m "chore: refresh AltStore source for ${{ steps.release.outputs.tag }}" || echo "nothing to commit"
-          git push
+          git push || echo "nothing to push"
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload docs to Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
