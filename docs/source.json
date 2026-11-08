@@ -12,11 +12,11 @@
       "tintColor": "1E90FF",
       "versions": [
         {
-          "version": "v20261108-040908",
+          "version": "v20261108-041502",
           "date": "2026-11-08",
-          "localizedDescription": "Unsigned cloud build v20261108-040908.",
-          "downloadURL": "https://github.com/aepikgamer-art/planeder/releases/download/v20261108-040908/PlaneTinderUnsigned.ipa",
-          "size": 92748
+          "localizedDescription": "Unsigned cloud build v20261108-041502.",
+          "downloadURL": "https://github.com/aepikgamer-art/planeder/releases/download/v20261108-041502/PlaneTinderUnsigned.ipa",
+          "size": 93932
         }
       ]
     }
