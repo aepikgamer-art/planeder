@@ -74,11 +74,17 @@ struct HomeView: View {
                 }
                 .padding(.bottom, 12)
             }
-
+        }
+        // Notification-style match banner, drops in from the top
+        .overlay(alignment: .top) {
             if let match = vm.matchPopup {
-                MatchOverlay(match: match) { vm.matchPopup = nil }
+                MatchBanner(match: match) { vm.matchPopup = nil }
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(3)
+                    .padding(.horizontal, 12)
             }
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: vm.matchPopup?.id)
         .task { vm.startDeck() }
         .onAppear { vm.loadMoreIfNeeded() }
         .sheet(isPresented: $showMatches) {
@@ -101,38 +107,75 @@ struct HomeView: View {
     }
 }
 
-struct MatchOverlay: View {
+// MARK: - iOS notification-style match banner
+
+struct MatchBanner: View {
     let match: PlaneCard
     let dismiss: () -> Void
 
     var body: some View {
-        ZStack {
-            Rectangle().fill(.black.opacity(0.55)).ignoresSafeArea()
-            VStack(spacing: 18) {
-                Text("It's a Match! ✈️❤️")
-                    .font(.system(size: 36, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
-                Text(match.reg)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.9))
-                if let url = URL(string: match.jetPhotosLink) {
-                    ShareLink("View on JetPhotos", item: url)
-                        .buttonStyle(.bordered)
+        HStack(spacing: 12) {
+            // App-icon-style thumbnail
+            AsyncImage(url: URL(string: match.imageURL)) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    Color(hue: 0.6, saturation: 0.5, brightness: 0.2)
                 }
-                Button("Keep swiping", action: dismiss)
-                    .buttonStyle(.borderedProminent)
             }
-            .padding(28)
-            .background(
-                RoundedRectangle(cornerRadius: 36, style: .continuous)
-                    .fill(.ultraThinMaterial)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 36, style: .continuous)
-                    .stroke(.white.opacity(0.3), lineWidth: 1)
-            )
-            .padding(32)
+            .frame(width: 44, height: 44)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text("It's a Match! ✈️")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Text("now")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+                Text("\(match.reg) · \(match.airline)")
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .lineLimit(1)
+            }
+
+            // Tap the whole banner to open the plane on JetPhotos
+            if let url = URL(string: match.jetPhotosLink) {
+                Link(destination: url) {
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+            }
         }
-        .transition(.scale(scale: 0.9).combined(with: .opacity))
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .opacity(0.95)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(.white.opacity(0.35), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
+        .onTapGesture(perform: dismiss)
+        .gesture(
+            DragGesture(minimumDistance: 10)
+                .onEnded { value in
+                    if value.translation.height < -40 {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { dismiss() }
+                    }
+                }
+        )
+        // Auto-dismiss after ~4s, like a real notification
+        .task(id: match.id) {
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { dismiss() }
+        }
     }
 }
