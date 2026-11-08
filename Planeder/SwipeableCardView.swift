@@ -4,6 +4,7 @@ struct SwipeableCardView: View {
     let card: PlaneCard
     var onSwipe: (PlaneCard, _ liked: Bool, _ superLiked: Bool) -> Void
     var isTop: Bool
+    var queuedAction: SwipeAction?
 
     @State private var offset: CGSize = .zero
     @State private var fired = false
@@ -39,8 +40,16 @@ struct SwipeableCardView: View {
             }
         }
         .offset(offset)
-        .rotationEffect(.degrees(Double(offset.width / 24)))
+        .rotationEffect(.degrees(Double(offset.width / 20)), anchor: .bottom)
         .gesture(isTop ? dragGesture() : nil)
+        .onChange(of: queuedAction) { _, action in
+            guard isTop, let action, !fired else { return }
+            switch action {
+            case .like: fire(liked: true, superLiked: false)
+            case .nope: fire(liked: false, superLiked: false)
+            case .superLike: fire(liked: true, superLiked: true)
+            }
+        }
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: offset)
     }
 
@@ -80,22 +89,26 @@ struct SwipeableCardView: View {
     @ViewBuilder
     private func cardBody(width: CGFloat, height: CGFloat) -> some View {
         ZStack(alignment: .bottom) {
+            // Photo cropped to fill the whole card
             AsyncImage(url: URL(string: card.imageURL)!) { phase in
                 switch phase {
                 case .success(let image):
-                    image.resizable().scaledToFill()
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: width, height: height)
                 case .failure:
                     ZStack {
                         Rectangle().fill(LinearGradient(colors: [.blue.opacity(0.3), .purple.opacity(0.3)], startPoint: .top, endPoint: .bottom))
                         Image(systemName: "airplane").font(.system(size: 60)).foregroundStyle(.white.opacity(0.5))
                     }
+                    .frame(width: width, height: height)
                 default:
                     Rectangle().fill(.ultraThinMaterial)
+                        .frame(width: width, height: height)
                         .overlay(ProgressView().tint(.white))
                 }
             }
-            .frame(width: width, height: height)
-            .clipped()
 
             LinearGradient(colors: [.clear, .black.opacity(0.85)], startPoint: .center, endPoint: .bottom)
                 .frame(height: height * 0.55)
@@ -103,19 +116,19 @@ struct SwipeableCardView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 (Text(card.reg).font(.system(size: 40, weight: .heavy, design: .rounded))
-                 + Text("  (card.airline)").font(.system(size: 22, weight: .medium)).foregroundColor(.white.opacity(0.9)))
+                 + Text("  \(card.airline)").font(.system(size: 22, weight: .medium)).foregroundColor(.white.opacity(0.9)))
                     .shadow(radius: 8)
 
                 HStack(spacing: 8) {
                     if !card.aircraft.isEmpty { GlassChip(text: card.aircraft, icon: "airplane") }
-                    if !card.serial.isEmpty { GlassChip(text: "S/N (card.serial)", icon: "number") }
+                    if !card.serial.isEmpty { GlassChip(text: "S/N \(card.serial)", icon: "number") }
                 }
                 if !card.location.isEmpty {
                     Label(card.location, systemImage: "mappin.and.ellipse")
                         .font(.footnote).foregroundStyle(.white.opacity(0.8))
                 }
                 if !card.photographer.isEmpty {
-                    Text("📷 (card.photographer) · via JetPhotos")
+                    Text("📷 \(card.photographer) · via JetPhotos")
                         .font(.caption2).foregroundStyle(.white.opacity(0.6))
                 }
             }
@@ -123,6 +136,7 @@ struct SwipeableCardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(width: width, height: height)
+        .clipped()
         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 32, style: .continuous)

@@ -44,26 +44,32 @@ struct HomeView: View {
                         emptyState
                     }
                     ForEach(Array(vm.cards.suffix(3).enumerated().reversed()), id: \.element.id) { _, card in
+                        let isTop = card.id == vm.cards.last?.id
                         SwipeableCardView(
                             card: card,
                             onSwipe: { c, liked, superLiked in vm.swipe(c, liked: liked, superLiked: superLiked) },
-                            isTop: card.id == vm.cards.last?.id
+                            isTop: isTop,
+                            queuedAction: isTop ? vm.queuedAction : nil
                         )
+                        // Tinder-style depth stack: back cards shrink + lift
+                        .scaleEffect(isTop ? 1 : 0.94)
+                        .offset(y: isTop ? 0 : -12)
+                        .zIndex(isTop ? 2 : 1)
                     }
                     if vm.loading && vm.cards.isEmpty { ProgressView().tint(.white).scaleEffect(1.4) }
                 }
                 .padding(.horizontal, 12)
 
-                // Action bar
+                // Action bar: buttons animate the top card out, Tinder-style
                 HStack(spacing: 32) {
                     GlassCircle(tint: .red, icon: "xmark") {
-                        nopeTop()
+                        vm.queuedAction = .nope
                     }
                     GlassCircle(tint: .blue, icon: "airplane.circle.fill") {
-                        superLikeTop()
+                        vm.queuedAction = .superLike
                     }
                     GlassCircle(tint: .green, icon: "heart.fill") {
-                        likeTop()
+                        vm.queuedAction = .like
                     }
                 }
                 .padding(.bottom, 12)
@@ -92,21 +98,6 @@ struct HomeView: View {
                 .buttonStyle(.borderedProminent)
             }
         }
-    }
-
-    private func topCard() -> PlaneCard? { vm.cards.last }
-
-    private func likeTop() {
-        guard let c = topCard() else { return }
-        vm.swipe(c, liked: true)
-    }
-    private func nopeTop() {
-        guard let c = topCard() else { return }
-        vm.swipe(c, liked: false)
-    }
-    private func superLikeTop() {
-        guard let c = topCard() else { return }
-        vm.swipe(c, liked: true, superLiked: true)
     }
 }
 

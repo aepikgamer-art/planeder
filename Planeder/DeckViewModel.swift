@@ -1,11 +1,14 @@
 import SwiftUI
 
+enum SwipeAction { case like, nope, superLike }
+
 @MainActor
 final class DeckViewModel: ObservableObject {
     @Published var cards: [PlaneCard] = []
     @Published var loading = false
     @Published var matchPopup: PlaneCard? = nil
     @Published var queueEmpty = false
+    @Published var queuedAction: SwipeAction?
 
     // JetAPI has no "browse" endpoint, it works per registration.
     // So the deck is a shuffled pool of airliner registrations (edit freely).
@@ -16,14 +19,14 @@ final class DeckViewModel: ObservableObject {
         "HL7613", "HL7615",                  // Korean A380
         "JA842A", "JA843A",                  // ANA 787
         "N101DN", "N102DN",                  // Delta A321neo
-        "N301DZ", "N302DZ",                  // Delta 737-900ER? swap if 404s
-        "N274AY", "N275AY",                  // AA 777-300ER? swap if 404s
+        "N301DZ", "N302DZ",
+        "N274AY", "N275AY",
         "N125DN", "N126DN",
         "N584UW", "N585UW",                  // ex-US A320
         "N905NK", "N906NK",                  // Spirit A320
         "N704JB", "N705JB",                  // JetBlue A320
         "N646VA",                            // Virgin
-        "N2642U",                            // United? swap if 404
+        "N2642U",
         "OE-LPD",                            // Austrian 777
         "HB-JHB",                            // Swiss 777
         "A7-ANI",                            // Qatar A380
@@ -69,6 +72,7 @@ final class DeckViewModel: ObservableObject {
     }
 
     func swipe(_ card: PlaneCard, liked: Bool, superLiked: Bool = false) {
+        queuedAction = nil
         cards.removeAll { $0.id == card.id }
         if liked {
             MatchStore.shared.add(card, superLiked: superLiked)
