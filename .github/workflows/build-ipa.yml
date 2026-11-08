@@ -34,12 +34,16 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGN_ENTITLEMENTS="" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES \
             | tee build.log | xcpretty || true
 
       - name: Show build log on failure
         if: failure()
-        run: tail -n 250 build.log
+        run: |
+          if [ -f build.log ]; then
+            tail -n 250 build.log
+          else
+            echo "no build.log (failed before archive)"
+          fi
 
       - name: Package unsigned IPA
         id: ipa
@@ -94,7 +98,6 @@ jobs:
                 "developerName": "khyrie",
                 "subtitle": "Tinder for planes",
                 "localizedDescription": "Swipe on planes. Photos and data from JetAPI (JetPhotos + FlightRadar24). Built in the cloud with GitHub Actions.",
-                "iconURL": "https://raw.githubusercontent.com/${{ github.repository }}/main/docs/icon.png",
                 "tintColor": "1E90FF",
                 "versions": [
                   {
@@ -102,7 +105,7 @@ jobs:
                     "date": "$DATE",
                     "localizedDescription": "Unsigned cloud build $TAG.",
                     "downloadURL": "$IPA_URL",
-                    "size": $SIZE
+                    "size": ${{ steps.ipa.outputs.size }}
                   }
                 ]
               }
