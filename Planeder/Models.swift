@@ -1,7 +1,6 @@
 import Foundation
 
-// JetAPI (jetapi.dev) response when called with only_jp=true:
-// https://www.jetapi.dev/api?reg=G-XLEA&only_jp=true&photos=1
+// JetAPI (jetapi.dev) response shapes
 
 struct JetPhotosResult: Codable {
     let Reg: String?
@@ -21,16 +20,39 @@ struct ImageAttributes: Codable {
     let Airline: String?
 }
 
+// FlightRadar metadata (lenient decoding - fields are all optional/never-fatal)
+struct FlightRadarResult: Decodable {
+    let Aircraft: String?
+    let Airline: String?
+    let Operator: String?
+    let TypeCode: String?
+    let ModeS: String?
+
+    enum CodingKeys: String, CodingKey {
+        case Aircraft, Airline, Operator, TypeCode, ModeS
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = decoder.container(keyedBy: CodingKeys.self)
+        Aircraft = (try? c.decodeIfPresent(String.self, forKey: .Aircraft)) ?? nil
+        Airline = (try? c.decodeIfPresent(String.self, forKey: .Airline)) ?? nil
+        Operator = (try? c.decodeIfPresent(String.self, forKey: .Operator)) ?? nil
+        TypeCode = (try? c.decodeIfPresent(String.self, forKey: .TypeCode)) ?? nil
+        ModeS = (try? c.decodeIfPresent(String.self, forKey: .ModeS)) ?? nil
+    }
+}
+
 struct PlaneCard: Identifiable, Codable, Equatable, Hashable {
     let id: String
     let reg: String
     let aircraft: String
     let airline: String
+    let typeCode: String
     let serial: String
     let photographer: String
     let location: String
     let dateTaken: String
-    let imageURL: String
+    let imageURL: String?
     let jetPhotosLink: String
 
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
@@ -61,10 +83,12 @@ final class MatchStore: ObservableObject {
         guard !matches.contains(where: { $0.plane.id == plane.id }) else { return }
         matches.insert(Match(id: plane.id, plane: plane, superLiked: superLiked, date: Date()), at: 0)
         save()
+        ChatStore.shared.seedStories(for: plane)
     }
 
     func remove(_ match: Match) {
         matches.removeAll { $0.id == match.id }
+        ChatStore.shared.removeThread(for: match.id)
         save()
     }
 

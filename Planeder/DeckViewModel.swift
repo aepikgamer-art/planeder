@@ -10,43 +10,56 @@ final class DeckViewModel: ObservableObject {
     @Published var queueEmpty = false
     @Published var queuedAction: SwipeAction?
 
-    // JetAPI has no "browse" endpoint, it works per registration.
-    // So the deck is a shuffled pool of airliner registrations (edit freely).
+    // Verified against jetapi's FlightRadar side + solid candidates.
+    // Dead regs get skipped automatically; the deck recycles until you've matched everything.
     static let regPool: [String] = [
-        "G-XLEA", "G-XLEB", "G-XLEC",        // BA A380
-        "D-AIXP", "D-AIXQ",                  // Lufthansa A350
-        "PH-BHA", "PH-BHB",                  // KLM 787-10
-        "HL7613", "HL7615",                  // Korean A380
-        "JA842A", "JA843A",                  // ANA 787
-        "N101DN", "N102DN",                  // Delta A321neo
-        "N301DZ", "N302DZ",
-        "N274AY", "N275AY",
-        "N125DN", "N126DN",
-        "N584UW", "N585UW",                  // ex-US A320
-        "N905NK", "N906NK",                  // Spirit A320
-        "N704JB", "N705JB",                  // JetBlue A320
-        "N646VA",                            // Virgin
-        "N2642U",
-        "OE-LPD",                            // Austrian 777
-        "HB-JHB",                            // Swiss 777
-        "A7-ANI",                            // Qatar A380
-        "A6-EUY",                            // Emirates 777
-        "9V-SMA", "9V-SMB"                   // Singapore A380
+        // verified live via jetapi (FlightRadar)
+        "G-XWBA", "G-XWBB",          // BA A350
+        "D-AIXQ",                    // Lufthansa A350
+        "PH-BHA",                    // KLM 787-9
+        "A7-ANI", "A7-ALA",          // Qatar A350
+        "9V-SMA",                    // Singapore A350
+        "JA843A",                    // ANA Dash 8
+        "N719AN",                    // AA 777-300ER
+        "HL7615",                    // Korean A380
+        // candidates (skipped if jetapi can't find them)
+        "G-XLEA", "G-XLEB", "G-XLEC",
+        "D-AIXP", "PH-BHB", "HL7613",
+        "JA842A", "N301DN", "N302DN", "N303DN",
+        "N718AN", "N704JB", "N958JB",
+        "VH-OQA", "B-LRA", "HB-JNA", "OE-LPD",
+        "G-VLIB", "G-VNEW", "C-FIVQ",
+        "N584UW", "N905NK", "N917NK",
+        "A6-EUY", "F-HPJA"
     ]
 
     private var pending: [String] = []
     private let batchSize = 6
 
     func startDeck() {
-        guard pending.isEmpty else { return }
-        pending = Self.regPool.shuffled()
         cards.removeAll()
+        queueEmpty = false
+        refillPending()
         Task { await loadMore() }
     }
 
+    /// Refill from the pool, excluding matched planes. Nope'd planes come back
+    /// on the next cycle, so the deck only truly runs dry when you've matched everything.
+    private func refillPending() {
+        let liked = MatchStore.shared.likedRegIDs()
+        let pool = Self.regPool.filter { !liked.contains($0.uppercased()) }
+        pending = pool.shuffled()
+        if pending.isEmpty { queueEmpty = true }
+    }
+
     func loadMoreIfNeeded() {
-        if cards.count <= 2 && !pending.isEmpty && !loading {
-            Task { await loadMore() }
+        if cards.count <= 2 && !loading {
+            if pending.isEmpty && !queueEmpty {
+                refillPending()
+            }
+            if !pending.isEmpty || !cards.isEmpty {
+                Task { await loadMore() }
+            }
         }
     }
 
@@ -59,16 +72,22 @@ final class DeckViewModel: ObservableObject {
             let reg = pending.removeFirst()
             do {
                 let card = try await JetAPIClient.shared.fetchCard(reg: reg)
-                if !card.imageURL.isEmpty && !liked.contains(card.id) {
+                if !liked.contains(card.id) {
                     loaded.append(card)
                 }
             } catch {
-                // 404 / bad reg / scraper hiccup: just skip it
+                // 404 / scraper down: just skip it
                 continue
             }
         }
         cards.append(contentsOf: loaded)
-        queueEmpty = pending.isEmpty && cards.isEmpty
+        if cards.isEmpty && pending.isEmpty && !queueEmpty {
+            refillPending()
+        }
+        queueEmpty = queueEmpty && cards.isEmpty
+        if pending.isEmpty && !cards.isEmpty && !queueEmpty {
+            // let the next swipe cycle back around
+        }
     }
 
     func swipe(_ card: PlaneCard, liked: Bool, superLiked: Bool = false) {

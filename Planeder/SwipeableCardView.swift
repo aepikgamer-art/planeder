@@ -87,33 +87,34 @@ struct SwipeableCardView: View {
         }
     }
 
-    // MARK: - Landscape-cropped photo on top, info panel below
+    // MARK: - Landscape-cropped photo (or glass art card) + info panel below
 
     @ViewBuilder
     private func cardBody(width: CGFloat, height: CGFloat) -> some View {
-        let photoHeight = width * 0.62 // landscape crop box, 16:10-ish
+        let photoHeight = width * 0.62 // landscape crop box
 
         VStack(spacing: 0) {
             ZStack(alignment: .bottom) {
-                AsyncImage(url: URL(string: card.imageURL)!) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: width, height: photoHeight)
-                            .clipped()
-                    case .failure:
-                        ZStack {
-                            Rectangle().fill(LinearGradient(colors: [.blue.opacity(0.3), .purple.opacity(0.3)], startPoint: .top, endPoint: .bottom))
-                            Image(systemName: "airplane").font(.system(size: 60)).foregroundStyle(.white.opacity(0.5))
+                if let urlStr = card.imageURL, let url = URL(string: urlStr) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: width, height: photoHeight)
+                                .clipped()
+                        case .failure:
+                            artCard(width: width, height: photoHeight)
+                        default:
+                            Rectangle().fill(.ultraThinMaterial)
+                                .frame(width: width, height: photoHeight)
+                                .overlay(ProgressView().tint(.white))
                         }
-                        .frame(width: width, height: photoHeight)
-                    default:
-                        Rectangle().fill(.ultraThinMaterial)
-                            .frame(width: width, height: photoHeight)
-                            .overlay(ProgressView().tint(.white))
                     }
+                } else {
+                    // JetPhotos scraper down: glass art card from FlightRadar data
+                    artCard(width: width, height: photoHeight)
                 }
 
                 // soft gradient into the info panel
@@ -133,7 +134,10 @@ struct SwipeableCardView: View {
 
                 HStack(spacing: 8) {
                     if !card.aircraft.isEmpty { GlassChip(text: card.aircraft, icon: "airplane") }
-                    if !card.serial.isEmpty { GlassChip(text: "S/N \(card.serial)", icon: "number") }
+                    if !card.typeCode.isEmpty { GlassChip(text: card.typeCode, icon: "number") }
+                }
+                if !card.serial.isEmpty {
+                    GlassChip(text: "S/N \(card.serial)", icon: "barcode")
                 }
                 if !card.location.isEmpty {
                     Label(card.location, systemImage: "mappin.and.ellipse")
@@ -160,6 +164,33 @@ struct SwipeableCardView: View {
                 .stroke(.white.opacity(0.3), lineWidth: 1.5)
         )
         .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
+    }
+
+    /// Glassy no-photo card with a big reg + plane silhouette
+    private func artCard(width: CGFloat, height: CGFloat) -> some View {
+        ZStack {
+            LinearGradient(colors: [Color(hue: 0.58, saturation: 0.5, brightness: 0.25),
+                                    Color(hue: 0.75, saturation: 0.45, brightness: 0.18)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            Image(systemName: "airplane")
+                .font(.system(size: 90, weight: .light))
+                .foregroundStyle(.white.opacity(0.28))
+                .rotationEffect(.degrees(-20))
+                .offset(x: width * 0.12, y: 8)
+            VStack(alignment: .leading) {
+                Text(card.reg)
+                    .font(.system(size: 34, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.9))
+                if !card.typeCode.isEmpty {
+                    Text(card.typeCode)
+                        .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+                Spacer()
+            }
+            .padding(18)
+        }
+        .frame(width: width, height: height)
     }
 }
 

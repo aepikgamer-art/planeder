@@ -3,7 +3,9 @@ import SwiftUI
 struct HomeView: View {
     @StateObject private var vm = DeckViewModel()
     @StateObject private var store = MatchStore.shared
+    @ObservedObject private var chatStore = ChatStore.shared
     @State private var showMatches = false
+    @State private var showChats = false
 
     var body: some View {
         ZStack {
@@ -18,11 +20,32 @@ struct HomeView: View {
                     Text("Planeder")
                         .font(.system(size: 34, weight: .heavy, design: .rounded))
                     Spacer()
+                    // Chats
+                    Button {
+                        showChats = true
+                    } label: {
+                        Image(systemName: "bubble.left.and.bubble.right.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.white)
+                    }
+                    .ifAvailableGlass()
+                    .frame(width: 52, height: 52)
+                    .buttonStyle(.plain)
+                    .overlay(alignment: .topTrailing) {
+                        let unread = store.matches.filter { !chatStore.messages(for: $0.plane.id).isEmpty }.count
+                        if unread > 0 {
+                            Text("\(unread)")
+                                .font(.caption2.bold()).foregroundStyle(.white)
+                                .padding(5).background(Circle().fill(.blue))
+                                .offset(x: 6, y: -6)
+                        }
+                    }
+                    // Matches
                     Button {
                         showMatches = true
                     } label: {
                         Image(systemName: "heart.circle.fill")
-                            .font(.system(size: 26))
+                            .font(.system(size: 22))
                             .foregroundStyle(.white)
                     }
                     .ifAvailableGlass()
@@ -90,15 +113,18 @@ struct HomeView: View {
         .sheet(isPresented: $showMatches) {
             MatchesView(store: store)
         }
+        .sheet(isPresented: $showChats) {
+            ChatsView(store: store, chatStore: chatStore)
+        }
     }
 
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "airplane.circle").font(.system(size: 64)).foregroundStyle(.white.opacity(0.5))
-            Text(vm.queueEmpty ? "That's every plane in the pool 💔" : "Loading planes…")
+            Text(vm.queueEmpty ? "You matched the whole fleet 💘" : "Loading planes…")
                 .font(.headline).foregroundStyle(.white.opacity(0.8))
             if vm.queueEmpty {
-                Button("Reshuffle") {
+                Button("Start over") {
                     vm.startDeck()
                 }
                 .buttonStyle(.borderedProminent)
@@ -116,7 +142,7 @@ struct MatchBanner: View {
     var body: some View {
         HStack(spacing: 12) {
             // App-icon-style thumbnail
-            AsyncImage(url: URL(string: match.imageURL)) { phase in
+            AsyncImage(url: URL(string: match.imageURL ?? "")) { phase in
                 switch phase {
                 case .success(let image):
                     image.resizable().scaledToFill()
