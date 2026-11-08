@@ -4,17 +4,66 @@ enum JetAPIError: Error {
     case badResponse, notFound, decoding
 }
 
+// planespotters.net free photo API (https://api.planespotters.net/pub/photos/reg?reg=)
+struct PlanespottersResponse: Decodable {
+    let photos: [PlanespottersPhoto]
+}
+
+struct PlanespottersPhoto: Decodable {
+    struct Thumb: Decodable { let src: String? }
+    let thumbnail_large: Thumb?
+    let link: String?
+    let photographer: String?
+}
+
 struct JetAPIClient {
     static let shared = JetAPIClient()
     private let base = URL(string: "https://www.jetapi.dev")!
 
-    /// Try JetPhotos for a photo first; if the photo scraper is down,
-    /// fall back to FlightRadar metadata (glass card, no photo).
+    /// Photos come from planespotters.net (jetapi's JetPhotos scraper is unreliable);
+    /// metadata comes from jetapi's FlightRadar endpoint. Falls back to a
+    /// metadata-only glass art card when a reg has no photo anywhere.
     func fetchCard(reg: String) async throws -> PlaneCard {
+        let fr = try? await fetchFlightRadar(reg: reg)
+
+        if let photo = await fetchPlanespottersPhoto(reg: reg) {
+            return PlaneCard(
+                id: reg.uppercased(),
+                reg: reg.uppercased(),
+                aircraft: fr?.Aircraft ?? "Airliner",
+                airline: fr?.Airline ?? fr?.Operator ?? "Unknown airline",
+                typeCode: fr?.TypeCode ?? "",
+                serial: "",
+                photographer: photo.photographer,
+                location: "",
+                dateTaken: "",
+                imageURL: photo.url,
+                jetPhotosLink: photo.link
+            )
+        }
+
+        // legacy path in case jetapi's JetPhotos scraper comes back
         if let card = try? await fetchJetPhotosCard(reg: reg) {
             return card
         }
-        return try await fetchFlightRadarCard(reg: reg)
+
+        if let fr, fr.Aircraft != nil || fr.Airline != nil {
+            return PlaneCard(
+                id: reg.uppercased(),
+                reg: reg.uppercased(),
+                aircraft: fr.Aircraft ?? "Airliner",
+                airline: fr.Airline ?? fr.Operator ?? "Unknown airline",
+                typeCode: fr.TypeCode ?? "",
+                serial: "",
+                photographer: "",
+                location: "",
+                dateTaken: "",
+                imageURL: nil,
+                jetPhotosLink: "https://www.jetphotos.com/photo/keyword/" + reg
+            )
+        }
+
+        throw JetAPIError.notFound
     }
 
     private func makeURL(reg: String, params: [String: String]) -> URL {
@@ -24,6 +73,25 @@ struct JetAPIClient {
         comps.queryItems = items
         return comps.url!
     }
+
+    // MARK: planespotters photo
+
+    private func fetchPlanespottersPhoto(reg: String) async -> (url: String, link: String, photographer: String)? {
+        guard let url = URL(string: "https://api.planespotters.net/pub/photos/reg?reg=" + reg.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!) else { return nil }
+        guard let (data, response) = try? await URLSession.shared.data(from: url),
+              let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+        guard let ps = try? JSONDecoder().decode(PlanespottersResponse.self, from: data),
+              let first = ps.photos.first else { return nil }
+        var src = first.thumbnail_large?.src ?? ""
+        if src.hasSuffix("_280.jpg") {
+            // try the hi-res variant; card view falls back to art card if it fails
+            src = src.replacingOccurrences(of: "_280.jpg", with: "_hd.jpg")
+        }
+        guard !src.isEmpty else { return nil }
+        return (src, first.link ?? "https://www.planespotters.net/search?q=" + reg, first.photographer ?? "")
+    }
+
+    // MARK: jetapi (legacy JetPhotos + FlightRadar metadata)
 
     private func fetchJetPhotosCard(reg: String) async throws -> PlaneCard {
         let (data, response) = try await URLSession.shared.data(from: makeURL(reg: reg, params: ["only_jp": "true", "photos": "1"]))
@@ -45,31 +113,18 @@ struct JetAPIClient {
             location: img.Location ?? "",
             dateTaken: img.DateTaken ?? "",
             imageURL: image,
-            jetPhotosLink: img.Link ?? "https://www.jetphotos.com/photo/keyword/(reg)"
+            jetPhotosLink: img.Link ?? "https://www.jetphotos.com/photo/keyword/" + reg
         )
     }
 
-    private func fetchFlightRadarCard(reg: String) async throws -> PlaneCard {
+    private func fetchFlightRadar(reg: String) async throws -> FlightRadarResult {
         let (data, response) = try await URLSession.shared.data(from: makeURL(reg: reg, params: ["only_fr": "true", "flights": "0"]))
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             throw JetAPIError.badResponse
         }
-        guard let fr = try? JSONDecoder().decode(FlightRadarResult.self, from: data),
-              (fr.Aircraft != nil || fr.Airline != nil || fr.ModeS != nil) else {
+        guard let fr = try? JSONDecoder().decode(FlightRadarResult.self, from: data) else {
             throw JetAPIError.notFound
         }
-        return PlaneCard(
-            id: reg.uppercased(),
-            reg: reg.uppercased(),
-            aircraft: fr.Aircraft ?? "Airliner",
-            airline: fr.Airline ?? fr.Operator ?? "Unknown airline",
-            typeCode: fr.TypeCode ?? "",
-            serial: "",
-            photographer: "",
-            location: "",
-            dateTaken: "",
-            imageURL: nil,
-            jetPhotosLink: "https://www.jetphotos.com/photo/keyword/(reg)"
-        )
+        return fr
     }
 }
