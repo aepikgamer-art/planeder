@@ -41,24 +41,14 @@ struct SwipeableCardView: View {
         }
         .offset(offset)
         .rotationEffect(.degrees(Double(offset.width / 20)), anchor: .bottom)
-        .gesture(isTop ? dragGesture() : nil)
-        .onChange(of: queuedAction) { _, action in
-            guard isTop, let action, !fired else { return }
-            switch action {
-            case .like: fire(liked: true, superLiked: false)
-            case .nope: fire(liked: false, superLiked: false)
-            case .superLike: fire(liked: true, superLiked: true)
-            }
-        }
-        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: offset)
-    }
-
-    private func dragGesture() -> AnyGesture<DragGesture.Value> {
-        AnyGesture(
-            DragGesture()
-                .onChanged { value in offset = value.translation }
+        .gesture(
+            DragGesture(minimumDistance: 4)
+                .onChanged { value in
+                    guard isTop else { return }
+                    offset = value.translation
+                }
                 .onEnded { value in
-                    guard !fired else { return }
+                    guard isTop, !fired else { return }
                     if value.translation.width > threshold {
                         fire(liked: true, superLiked: false)
                     } else if value.translation.width < -threshold {
@@ -70,6 +60,15 @@ struct SwipeableCardView: View {
                     }
                 }
         )
+        .onChange(of: queuedAction) { _, action in
+            guard isTop, let action, !fired else { return }
+            switch action {
+            case .like: fire(liked: true, superLiked: false)
+            case .nope: fire(liked: false, superLiked: false)
+            case .superLike: fire(liked: true, superLiked: true)
+            }
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: offset)
     }
 
     private func fire(liked: Bool, superLiked: Bool) {
