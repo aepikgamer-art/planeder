@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Glass container that works on iOS 17+ and upgrades to true Liquid Glass on iOS 26+
+// MARK: - Glass helpers: true Liquid Glass on iOS 26+, ultraThinMaterial fallback below
 
 struct GlassCapsule<Content: View>: View {
     @ViewBuilder var content: () -> Content
@@ -10,7 +10,7 @@ struct GlassCapsule<Content: View>: View {
             content()
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .glassEffect(.regular.interactive(), in: CapsuleShape())
+                .glassEffect(.regular.interactive(), in: Capsule())
         } else {
             content()
                 .padding(.horizontal, 16)
@@ -21,12 +21,7 @@ struct GlassCapsule<Content: View>: View {
     }
 }
 
-struct CapsuleShape: InsettableShape {
-    func path(in rect: CGRect) -> Path { Path(Capsule().path(in: rect)) }
-    func inset(by amount: CGFloat) -> some InsettableShape { self }
-}
-
-struct GlassCircle<Content: View>: View {
+struct GlassCircle: View {
     var tint: Color
     var icon: String
     var action: () -> Void

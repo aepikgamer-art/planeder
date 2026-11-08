@@ -40,25 +40,27 @@ struct SwipeableCardView: View {
         }
         .offset(offset)
         .rotationEffect(.degrees(Double(offset.width / 24)))
-        .gesture(isTop ? dragGesture : nil)
+        .gesture(isTop ? dragGesture() : nil)
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: offset)
     }
 
-    private func dragGesture -> some Gesture {
-        DragGesture()
-            .onChanged { offset = $0.translation }
-            .onEnded { value in
-                guard !fired else { return }
-                if value.translation.width > threshold {
-                    fire(liked: true, superLiked: false)
-                } else if value.translation.width < -threshold {
-                    fire(liked: false, superLiked: false)
-                } else if value.translation.height < -threshold * 1.4 {
-                    fire(liked: true, superLiked: true) // swipe up = super like ✈️
-                } else {
-                    offset = .zero
+    private func dragGesture() -> AnyGesture<DragGesture.Value> {
+        AnyGesture(
+            DragGesture()
+                .onChanged { value in offset = value.translation }
+                .onEnded { value in
+                    guard !fired else { return }
+                    if value.translation.width > threshold {
+                        fire(liked: true, superLiked: false)
+                    } else if value.translation.width < -threshold {
+                        fire(liked: false, superLiked: false)
+                    } else if value.translation.height < -threshold * 1.4 {
+                        fire(liked: true, superLiked: true) // swipe up = super like
+                    } else {
+                        offset = .zero
+                    }
                 }
-            }
+        )
     }
 
     private func fire(liked: Bool, superLiked: Bool) {
@@ -101,19 +103,19 @@ struct SwipeableCardView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 (Text(card.reg).font(.system(size: 40, weight: .heavy, design: .rounded))
-                 + Text("  \(card.airline)").font(.system(size: 22, weight: .medium)).foregroundColor(.white.opacity(0.9)))
+                 + Text("  (card.airline)").font(.system(size: 22, weight: .medium)).foregroundColor(.white.opacity(0.9)))
                     .shadow(radius: 8)
 
                 HStack(spacing: 8) {
                     if !card.aircraft.isEmpty { GlassChip(text: card.aircraft, icon: "airplane") }
-                    if !card.serial.isEmpty { GlassChip(text: "S/N \(card.serial)", icon: "number") }
+                    if !card.serial.isEmpty { GlassChip(text: "S/N (card.serial)", icon: "number") }
                 }
                 if !card.location.isEmpty {
                     Label(card.location, systemImage: "mappin.and.ellipse")
                         .font(.footnote).foregroundStyle(.white.opacity(0.8))
                 }
                 if !card.photographer.isEmpty {
-                    Text("📷 \(card.photographer) · via JetPhotos")
+                    Text("📷 (card.photographer) · via JetPhotos")
                         .font(.caption2).foregroundStyle(.white.opacity(0.6))
                 }
             }

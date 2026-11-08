@@ -43,11 +43,11 @@ struct HomeView: View {
                     if vm.cards.isEmpty && !vm.loading {
                         emptyState
                     }
-                    ForEach(Array(vm.cards.suffix(3).enumerated().reversed()), id: \.element.id) { index, card in
+                    ForEach(Array(vm.cards.suffix(3).enumerated().reversed()), id: \.element.id) { _, card in
                         SwipeableCardView(
                             card: card,
                             onSwipe: { c, liked, superLiked in vm.swipe(c, liked: liked, superLiked: superLiked) },
-                            isTop: index == vm.cards.count - 1
+                            isTop: card.id == vm.cards.last?.id
                         )
                     }
                     if vm.loading && vm.cards.isEmpty { ProgressView().tint(.white).scaleEffect(1.4) }
