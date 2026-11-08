@@ -15,7 +15,7 @@ struct MatchesView: View {
                     List {
                         ForEach(store.matches) { match in
                             HStack(spacing: 12) {
-                                AsyncImage(url: URL(string: match.plane.imageURL)) { img in
+                                AsyncImage(url: match.plane.imageURL.flatMap { URL(string: $0) }) { img in
                                     img.resizable().scaledToFill()
                                 } placeholder: {
                                     Color.gray.opacity(0.2)
@@ -39,7 +39,8 @@ struct MatchesView: View {
                                 Button("Unmatch", role: .destructive) { store.remove(match) }
                             }
                         }
-                    }
+ 
+                   }
                     .listStyle(.insetGrouped)
                 }
             }
