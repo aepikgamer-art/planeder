@@ -33,7 +33,7 @@ struct FlightRadarResult: Decodable {
     }
 
     init(from decoder: Decoder) throws {
-        let c = decoder.container(keyedBy: CodingKeys.self)
+        let c = try decoder.container(keyedBy: CodingKeys.self)
         Aircraft = (try? c.decodeIfPresent(String.self, forKey: .Aircraft)) ?? nil
         Airline = (try? c.decodeIfPresent(String.self, forKey: .Airline)) ?? nil
         Operator = (try? c.decodeIfPresent(String.self, forKey: .Operator)) ?? nil
@@ -67,7 +67,8 @@ struct Match: Codable, Identifiable {
 }
 
 final class MatchStore: ObservableObject {
-    static let shared = MatchStore()
+    static let shared = Mat
+chStore()
     private let key = "planeder.matches"
 
     @Published private(set) var matches: [Match] = []
