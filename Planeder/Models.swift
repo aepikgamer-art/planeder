@@ -67,8 +67,7 @@ struct Match: Codable, Identifiable {
 }
 
 final class MatchStore: ObservableObject {
-    static let shared = Mat
-chStore()
+    static let shared = MatchStore()
     private let key = "planeder.matches"
 
     @Published private(set) var matches: [Match] = []
