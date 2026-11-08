@@ -44,7 +44,8 @@ struct SwipeableCardView: View {
         .offset(offset)
         .rotationEffect(.degrees(Double(offset.width / 20)), anchor: .bottom)
         .gesture(
-            DragGesture(minimumDistance: 4)
+            DragGestu
+re(minimumDistance: 4)
                 .onChanged { value in
                     guard isTop else { return }
                     offset = value.translation
@@ -91,7 +92,8 @@ struct SwipeableCardView: View {
 
     @ViewBuilder
     private func cardBody(width: CGFloat, height: CGFloat) -> some View {
-        let photoHeight = width * 0.62 // landscape crop box
+        let photoHeight =
+ width * 0.62 // landscape crop box
 
         VStack(spacing: 0) {
             ZStack(alignment: .bottom) {
@@ -133,7 +135,8 @@ struct SwipeableCardView: View {
                     .shadow(radius: 6)
 
                 HStack(spacing: 8) {
-                    if !card.aircraft.isEmpty { GlassChip(text: card.aircraft, icon: "airplane") }
+                    if !card.aircraft.isEmpty { GlassChip(text: card.air
+craft, icon: "airplane") }
                     if !card.typeCode.isEmpty { GlassChip(text: card.typeCode, icon: "number") }
                 }
                 if !card.serial.isEmpty {
@@ -144,7 +147,7 @@ struct SwipeableCardView: View {
                         .font(.footnote).foregroundStyle(.white.opacity(0.75))
                 }
                 if !card.photographer.isEmpty {
-                    Text("📷 \(card.photographer) · via JetPhotos")
+                    Text("📷 \(card.photographer) · planespotters.net")
                         .font(.caption2).foregroundStyle(.white.opacity(0.55))
                 }
             }
@@ -174,7 +177,8 @@ struct SwipeableCardView: View {
                            startPoint: .topLeading, endPoint: .bottomTrailing)
             Image(systemName: "airplane")
                 .font(.system(size: 90, weight: .light))
-                .foregroundStyle(.white.opacity(0.28))
+           
+     .foregroundStyle(.white.opacity(0.28))
                 .rotationEffect(.degrees(-20))
                 .offset(x: width * 0.12, y: 8)
             VStack(alignment: .leading) {
