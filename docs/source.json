@@ -1,0 +1,24 @@
+{
+  "name": "Planeder",
+  "identifier": "dev.khyrie.planetinder.source",
+  "website": "https://github.com/aepikgamer-art/planeder",
+  "apps": [
+    {
+      "bundleIdentifier": "dev.khyrie.planetinder",
+      "name": "Planeder",
+      "developerName": "khyrie",
+      "subtitle": "Tinder for planes",
+      "localizedDescription": "Swipe on planes. Photos and data from JetAPI (JetPhotos + FlightRadar24). Built in the cloud with GitHub Actions.",
+      "tintColor": "1E90FF",
+      "versions": [
+        {
+          "version": "v20261108-015211",
+          "date": "2026-11-08",
+          "localizedDescription": "Unsigned cloud build v20261108-015211.",
+          "downloadURL": "https://github.com/aepikgamer-art/planeder/releases/download/v20261108-015211/PlaneTinderUnsigned.ipa",
+          "size": 91367
+        }
+      ]
+    }
+  ]
+}
